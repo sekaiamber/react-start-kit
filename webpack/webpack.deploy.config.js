@@ -2,58 +2,65 @@ var webpack = require('webpack');
 var path = require('path');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
 var HtmlWebpackPlugin = require('html-webpack-plugin');
+var uglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
+var CommonsChunkPlugin = webpack.optimize.CommonsChunkPlugin;
+var WebpackShellPlugin = require('webpack-shell-plugin');
 
-var routers = require('./routers.dev.json').routers;
-var index = '/' + require('./routers.dev.json').index;
+var routers = require('./routers.deploy.json').routers;
 
-var entry = {};
+var entry = {
+  vendors: ['react', 'react-dom']
+};
 routers.forEach((r) => {
   entry[r.name] = r.entry;
 });
 var plugins = routers.map(r => new HtmlWebpackPlugin({
   template: r.template,
   filename: r.filename,
-  chunks: [r.name],
-  inject: 'body'
-}));
-var rewrites = routers.map(r => ({
-  from: new RegExp('\\/' + r.name),
-  to: '/' + r.filename,
+  chunks: [r.name, 'vendors'],
+  inject: 'body',
+  hash: true
 }));
 
 var config = {
   context: path.join(__dirname, '..', '/root'),
   entry,
   output: {
-    path: path.join(__dirname, '..', '/root/build'),
-    filename: '[name].bundle.js',
+    path: path.join(__dirname, '..', '/root/dist'),
+    publicPath: '//assets.isekai.me/',
+    filename: '[name].bundle.[hash].js',
   },
   plugins: [
     new webpack.DefinePlugin({
       __DEV__: JSON.stringify(JSON.parse(process.env.BUILD_DEV || 'true')), // judge if dev environment.
       __PRERELEASE__: JSON.stringify(JSON.parse(process.env.BUILD_PRERELEASE || 'false')) // judge if secret environment.
     }),
-    new ExtractTextPlugin("[name].css"),
+    new uglifyJsPlugin({
+      compress: {
+        warnings: false
+      }
+    }),
+    new webpack.optimize.MinChunkSizePlugin({ minChunkSize: 20000 }),
+    new webpack.optimize.OccurenceOrderPlugin(false),
+    new webpack.optimize.AggressiveMergingPlugin({
+      minSizeReduce: 1.5,
+      moveToParents: true
+    }),
+    new CommonsChunkPlugin('vendors', 'vendors.[hash].js', Infinity),
+    new ExtractTextPlugin("[name].[hash].css"),
+    new webpack.optimize.DedupePlugin(),
+    new WebpackShellPlugin({
+      onBuildExit: [
+        'echo',
+        'echo ==============',
+        'echo      WORK',
+        'echo ==============',
+        'echo',
+        'node webpack/deploy.js',
+      ]
+    })
   ].concat(plugins),
   module: {
-    perLoaders: [
-      {
-        test: /\.(js|jsx)?$/,
-        exclude: /node_modules/,
-        loader: 'eslint'
-      },
-      {
-        test: /.reactx$/,
-        loader: 'eslint',
-        exclude: /node_modules/
-      },
-      ,
-      {
-        test: /.vue$/,
-        loader: 'eslint',
-        exclude: /node_modules/
-      }
-    ],
     loaders: [
       {
         test: /\.jsx?$/,
@@ -66,7 +73,7 @@ var config = {
       },
       {
         test: /\.scss$/,
-        loader: 'style-loader!css-loader!autoprefixer?{browsers:["last 2 version", "> 1%"]}!sass'
+        loader: ExtractTextPlugin.extract('style-loader', 'css-loader!autoprefixer?{browsers:["last 2 version", "> 1%"]}!sass')
       },
       {
         test: /\.(jpe?g|png|gif)$/i,
@@ -84,30 +91,21 @@ var config = {
         test: /\.reactx$/,
         loader: 'reactx-loader'
       },
-    ],
-    noParse: []
+    ]
   },
   resolve: {
-    extensions: ['', '.js', '.json', '.jsx', '.reactx', 'react'],
-    alias: {}
+    // 設定後只需要寫 require('file') 而不用寫成 require('file.jsx')
+    extensions: ['', '.js', '.json', '.jsx', '.reactx', 'react']
   },
-  devtool: 'eval-source-map',
-  jshint: {
-    "esnext": true
-  },
-  devServer: {
-    inline: true,
-    // host: '192.168.0.132',
-    historyApiFallback: {
-      index,
-      rewrites,
-    },
-    // proxy: {
-    //   '/api/v1/*': {
-    //     target: 'http://123.59.79.196',
-    //     secure: false
-    //   }
-    // }
+  externals: {
+    react: "React",
+    'react-dom': "ReactDOM",
+    redux: "Redux",
+    'react-redux': "ReactRedux",
+    lodash: "_",
+    wilddog: "wilddog",
+    marked: "marked",
+    jquery: "jQuery",
   },
   reactx: {
     // loaders for each langs

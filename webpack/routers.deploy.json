@@ -1,0 +1,9 @@
+{
+  "index": "index.html",
+  "routers": [{
+    "name": "index",
+    "entry": "./src/entry/start",
+    "template": "./templates/index.deploy.html",
+    "filename": "index.html"
+  }]
+}

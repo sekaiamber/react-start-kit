@@ -1,23 +1,21 @@
-const React = require('react');
-require('./index.scss');
+import React, { Component } from 'react';
+import { connect } from 'dva';
+import './style.scss';
 
-const logo = document.createElement('img');
-logo.src = require('./../../assets/images/logo.svg');
-
-var Index = React.createClass({
-  getInitialState() {
-    return {
-      theme: 'light',
-    };
-  },
-  render: function () {
+class Index extends Component {
+  render() {
     return (
-      <div>
-        <h1>React Start Kit</h1>
-        <div><img src={logo.src} /></div>
+      <div className="dl-index">
+        2222
       </div>
-    )
+    );
   }
-});
+}
 
-module.exports = Index;
+function mapStateToProps({ routing }) {
+  return {
+    pathname: routing.locationBeforeTransitions.pathname,
+  };
+}
+
+export default connect(mapStateToProps)(Index);
